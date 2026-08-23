@@ -743,6 +743,38 @@ namespace PixelPair
             return new { ok = true, count, src_w = srcW, src_h = srcH, dst_w = dstW, dst_h = dstH };
         }
 
+        public object OutlineObject(string color, bool diagonal = false, int? x = null, int? y = null, int? w = null, int? h = null)
+        {
+            var outlineCol = ImageEngine.ParseHex(color) ?? new Rgba32(0, 0, 0, 255);
+            ClipRect(x, y, w, h, out int x0, out int y0, out int x1, out int y1);
+            SaveUndoStateForEditableLayer();
+            int count;
+            lock (_pixelLock)
+            {
+                var active = GetEditableActiveLayerLocked();
+                count = OutlineObjectLocked(active.Pixels, outlineCol, diagonal, x0, y0, x1 - x0, y1 - y0);
+            }
+            RaiseChanged();
+            Log($"에이전트: outline_object color={color} diag={diagonal} ({count}픽셀)");
+            return new { ok = true, count, color };
+        }
+
+        public object DropShadow(int dx = 0, int dy = 4, string? color = null, string type = "object", int? x = null, int? y = null, int? w = null, int? h = null)
+        {
+            var shadowCol = ImageEngine.ParseHex(color ?? "#1E2022") ?? new Rgba32(30, 32, 34, 255);
+            ClipRect(x, y, w, h, out int x0, out int y0, out int x1, out int y1);
+            SaveUndoStateForEditableLayer();
+            int count;
+            lock (_pixelLock)
+            {
+                var active = GetEditableActiveLayerLocked();
+                count = DropShadowLocked(active.Pixels, dx, dy, shadowCol, type, x0, y0, x1 - x0, y1 - y0);
+            }
+            RaiseChanged();
+            Log($"에이전트: drop_shadow dx={dx}, dy={dy} type={type} ({count}픽셀)");
+            return new { ok = true, count, dx, dy, type };
+        }
+
         public object ApplyOperations(JsonElement operations)
         {
             if (operations.ValueKind != JsonValueKind.Array)
@@ -880,6 +912,18 @@ namespace PixelPair
                     int? targetH = OperationNullableInt(operation, "target_h");
                     bool center = OperationBool(operation, "center", true);
                     ScaleRectLocked(grid, scx, scy, scw, sch, scale, scaleX, scaleY, targetW, targetH, center);
+                    return;
+                case "outline_object":
+                    int? ox = OperationNullableInt(operation, "x"), oy = OperationNullableInt(operation, "y"), ow = OperationNullableInt(operation, "w"), oh = OperationNullableInt(operation, "h");
+                    ClipRect(ox, oy, ow, oh, out int ox0, out int oy0, out int ox1, out int oy1);
+                    var oCol = ImageEngine.ParseHex(OperationString(operation, "color") ?? "#000000") ?? new Rgba32(0, 0, 0, 255);
+                    OutlineObjectLocked(grid, oCol, OperationBool(operation, "diagonal"), ox0, oy0, ox1 - ox0, oy1 - oy0);
+                    return;
+                case "drop_shadow":
+                    int? dsx = OperationNullableInt(operation, "x"), dsy = OperationNullableInt(operation, "y"), dsw = OperationNullableInt(operation, "w"), dsh = OperationNullableInt(operation, "h");
+                    ClipRect(dsx, dsy, dsw, dsh, out int dsx0, out int dsy0, out int dsx1, out int dsy1);
+                    var dsCol = ImageEngine.ParseHex(OperationString(operation, "color") ?? "#1E2022") ?? new Rgba32(30, 32, 34, 255);
+                    DropShadowLocked(grid, OperationInt(operation, "dx", 0), OperationInt(operation, "dy", 4), dsCol, OperationString(operation, "type") ?? "object", dsx0, dsy0, dsx1 - dsx0, dsy1 - dsy0);
                     return;
                 default:
                     throw new ArgumentException($"지원하지 않는 operation: {op}");
@@ -1187,6 +1231,107 @@ namespace PixelPair
             }
 
             return (count, srcW, srcH, dstW, dstH);
+        }
+
+        private int OutlineObjectLocked(Rgba32?[,] grid, Rgba32 outlineColor, bool diagonal, int x0, int y0, int w, int h)
+        {
+            int x1 = Math.Min(GridSize, x0 + w);
+            int y1 = Math.Min(GridSize, y0 + h);
+            var toFill = new List<(int x, int y)>();
+
+            for (int y = y0; y < y1; y++)
+            {
+                for (int x = x0; x < x1; x++)
+                {
+                    if (grid[x, y] != null) continue;
+
+                    bool hasNeighbor = false;
+                    if (x > 0 && grid[x - 1, y] != null) hasNeighbor = true;
+                    else if (x < GridSize - 1 && grid[x + 1, y] != null) hasNeighbor = true;
+                    else if (y > 0 && grid[x, y - 1] != null) hasNeighbor = true;
+                    else if (y < GridSize - 1 && grid[x, y + 1] != null) hasNeighbor = true;
+
+                    if (!hasNeighbor && diagonal)
+                    {
+                        if (x > 0 && y > 0 && grid[x - 1, y - 1] != null) hasNeighbor = true;
+                        else if (x < GridSize - 1 && y > 0 && grid[x + 1, y - 1] != null) hasNeighbor = true;
+                        else if (x > 0 && y < GridSize - 1 && grid[x - 1, y + 1] != null) hasNeighbor = true;
+                        else if (x < GridSize - 1 && y < GridSize - 1 && grid[x + 1, y + 1] != null) hasNeighbor = true;
+                    }
+
+                    if (hasNeighbor)
+                    {
+                        toFill.Add((x, y));
+                    }
+                }
+            }
+
+            foreach (var (fx, fy) in toFill)
+            {
+                grid[fx, fy] = outlineColor;
+            }
+
+            return toFill.Count;
+        }
+
+        private int DropShadowLocked(Rgba32?[,] grid, int dx, int dy, Rgba32 shadowColor, string type, int x0, int y0, int w, int h)
+        {
+            int count = 0;
+            if (string.Equals(type, "ground", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "floor", StringComparison.OrdinalIgnoreCase))
+            {
+                int minX = GridSize, maxX = -1, maxY = -1;
+                for (int y = 0; y < GridSize; y++)
+                {
+                    for (int x = 0; x < GridSize; x++)
+                    {
+                        if (grid[x, y] != null)
+                        {
+                            if (x < minX) minX = x;
+                            if (x > maxX) maxX = x;
+                            if (y > maxY) maxY = y;
+                        }
+                    }
+                }
+
+                if (maxX < minX || maxY < 0) return 0;
+
+                int cx = (minX + maxX) / 2 + dx;
+                int cy = Math.Min(GridSize - 1, maxY + dy);
+                int rx = Math.Max(2, (maxX - minX + 1) / 2);
+                int ry = Math.Max(1, rx / 4);
+
+                count += DrawEllipseLocked(grid, cx, cy, rx, ry, shadowColor, fill: true, strokeWidth: 1);
+            }
+            else
+            {
+                var shadowPixels = new List<(int x, int y)>();
+                for (int y = y0; y < Math.Min(GridSize, y0 + h); y++)
+                {
+                    for (int x = x0; x < Math.Min(GridSize, x0 + w); x++)
+                    {
+                        if (grid[x, y] != null)
+                        {
+                            int sx = x + dx;
+                            int sy = y + dy;
+                            if (sx >= 0 && sx < GridSize && sy >= 0 && sy < GridSize)
+                            {
+                                shadowPixels.Add((sx, sy));
+                            }
+                        }
+                    }
+                }
+
+                foreach (var (sx, sy) in shadowPixels)
+                {
+                    if (grid[sx, sy] == null)
+                    {
+                        grid[sx, sy] = shadowColor;
+                        count++;
+                    }
+                }
+            }
+
+            return count;
         }
 
         private int DrawLineLocked(Rgba32?[,] grid, int x0, int y0, int x1, int y1, Rgba32? color, bool pixelPerfect = false, string? symmetry = null)

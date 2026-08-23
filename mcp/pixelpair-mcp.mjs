@@ -255,24 +255,27 @@ const TOOLS = [
   {
     name: "apply_operations",
     description:
-      "복잡한 아이콘의 여러 원시 작업을 한 요청으로 묶는다. fill_rect, clear_rect, flip_rect, shift_rect, rotate_rect, draw_line, draw_circle, draw_ellipse, round_corners, recolor, set_pixels, center_canvas, scale_rect를 operations 순서대로 적용하며 Undo는 한 단계만 만든다. [원칙]: 억지로 부위별 레이어를 쪼개지 말고 캐릭터 본체는 유기적인 명암을 위해 한 레이어에 완성도 높게 그리고, 배경/특수효과처럼 기능적으로 분리될 때만 레이어를 나눈다. symmetry('vertical')와 pixel_perfect(true) 옵션을 적극 활용할 것.",
+      "복잡한 아이콘의 여러 원시 작업을 한 요청으로 묶는다. fill_rect, clear_rect, flip_rect, shift_rect, rotate_rect, draw_line, draw_circle, draw_ellipse, round_corners, recolor, set_pixels, center_canvas, scale_rect, outline_object, drop_shadow를 operations 순서대로 적용하며 Undo는 한 단계만 만든다. [원칙]: 억지로 부위별 레이어를 쪼개지 말고 캐릭터 본체는 유기적인 명암을 위해 한 레이어에 완성도 높게 그리고, 배경/특수효과처럼 기능적으로 분리될 때만 레이어를 나눈다. symmetry('vertical')와 pixel_perfect(true) 옵션을 적극 활용할 것.",
     inputSchema: {
       type: "object",
       properties: {
         operations: {
           type: "array",
-          description: "각 객체의 op는 fill_rect, clear_rect, flip_rect, shift_rect, rotate_rect, draw_line, draw_circle, draw_ellipse, draw_polygon, round_corners, recolor, set_pixels, center_canvas, scale_rect 중 하나. symmetry, pixel_perfect 옵션을 지원한다.",
+          description: "각 객체의 op는 fill_rect, clear_rect, flip_rect, shift_rect, rotate_rect, draw_line, draw_circle, draw_ellipse, draw_polygon, round_corners, recolor, set_pixels, center_canvas, scale_rect, outline_object, drop_shadow 중 하나. symmetry, pixel_perfect 옵션을 지원한다.",
           items: {
             type: "object",
             properties: {
-              op: { type: "string", enum: ["fill_rect", "clear_rect", "flip_rect", "shift_rect", "rotate_rect", "draw_line", "draw_circle", "draw_ellipse", "draw_polygon", "round_corners", "recolor", "set_pixels", "center_canvas", "scale_rect"] },
+              op: { type: "string", enum: ["fill_rect", "clear_rect", "flip_rect", "shift_rect", "rotate_rect", "draw_line", "draw_circle", "draw_ellipse", "draw_polygon", "round_corners", "recolor", "set_pixels", "center_canvas", "scale_rect", "outline_object", "drop_shadow"] },
               x: { type: "integer" }, y: { type: "integer" }, w: { type: "integer" }, h: { type: "integer" },
               x0: { type: "integer" }, y0: { type: "integer" }, x1: { type: "integer" }, y1: { type: "integer" },
+              dx: { type: "integer" }, dy: { type: "integer" },
               points: { type: "array", description: "draw_polygon용 꼭짓점 배열 [[x0,y0], [x1,y1], ...]" },
               radius: { type: "integer" }, rx: { type: "integer" }, ry: { type: "integer" }, color: { type: "string" }, fill: { type: "boolean" }, stroke_width: { type: "integer", description: "fill=false일 때 테두리 두께. 2 이상이면 링을 한 번에 그린다." },
               fill_color: { type: "string", description: "round_corners가 지운 모서리를 투명 대신 이 색으로 채운다." },
               axis: { type: "string", enum: ["both", "horizontal", "vertical"], description: "center_canvas용 정렬 축" },
               scale: { type: "number", description: "scale_rect용 배율" }, scale_x: { type: "number" }, scale_y: { type: "number" }, target_w: { type: "integer" }, target_h: { type: "integer" }, center: { type: "boolean" },
+              diagonal: { type: "boolean", description: "outline_object용 대각선 8방향 테두리 포함 여부" },
+              type: { type: "string", enum: ["object", "ground"], description: "drop_shadow용 그림자 타입 (object: 사선 그림자, ground: 바닥 타원 그림자)" },
               symmetry: { type: "string", enum: ["vertical", "horizontal", "both", "none"], description: "실시간 대칭 (vertical: 좌우 대칭)" },
               pixel_perfect: { type: "boolean", description: "draw_line 등에서 L자형 코너 겹침 도트 자동 제거" },
               from: { type: "string" }, to: { type: "string" }, tolerance: { type: "integer" }, mode: { type: "string", enum: ["partial", "full"] },
@@ -628,6 +631,38 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: "outline_object",
+    description: "현재 활성 레이어 내의 그려진 오브젝트 외곽선 테두리를 1픽셀 두께로 자동 생성한다 (아이콘/스티커 스타일).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        color: { type: "string", description: "외곽선 색상 (#RRGGBB, 기본 #000000)" },
+        diagonal: { type: "boolean", description: "대각선 8방향 테두리 포함 여부 (기본 false: 상하좌우 4방향)" },
+        x: { type: "integer", description: "선택. 적용 영역 x" },
+        y: { type: "integer", description: "선택. 적용 영역 y" },
+        w: { type: "integer", description: "선택. 적용 영역 w" },
+        h: { type: "integer", description: "선택. 적용 영역 h" },
+      },
+    },
+  },
+  {
+    name: "drop_shadow",
+    description: "현재 활성 레이어 내의 오브젝트에 자동 그림자를 생성한다 (사선 실루엣 그림자 또는 바닥 타원 그림자).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dx: { type: "integer", description: "그림자 가로 오프셋 (기본 0)" },
+        dy: { type: "integer", description: "그림자 세로 오프셋 (기본 4)" },
+        color: { type: "string", description: "그림자 색상 (#RRGGBB, 기본 #1E2022)" },
+        type: { type: "string", enum: ["object", "ground"], description: "그림자 종류 (object: 사선 실루엣 그림자, ground: 바닥 타원 그림자)" },
+        x: { type: "integer", description: "선택. 적용 영역 x" },
+        y: { type: "integer", description: "선택. 적용 영역 y" },
+        w: { type: "integer", description: "선택. 적용 영역 w" },
+        h: { type: "integer", description: "선택. 적용 영역 h" },
+      },
+    },
+  },
 ];
 
 async function callTool(name, args) {
@@ -777,6 +812,20 @@ async function callTool(name, args) {
         scale: args.scale, scale_x: args.scale_x, scale_y: args.scale_y,
         target_w: args.target_w, target_h: args.target_h,
         center: args.center,
+      }));
+    case "outline_object":
+      return okText(await api("POST", "/outline_object", {
+        color: args.color,
+        diagonal: args.diagonal,
+        x: args.x, y: args.y, w: args.w, h: args.h,
+      }));
+    case "drop_shadow":
+      return okText(await api("POST", "/drop_shadow", {
+        dx: args.dx,
+        dy: args.dy,
+        color: args.color,
+        type: args.type,
+        x: args.x, y: args.y, w: args.w, h: args.h,
       }));
     default:
       return errText(`unknown tool: ${name}`);

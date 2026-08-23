@@ -116,6 +116,59 @@ function drawGrid() {
     ctx.strokeRect(sx, sy, sw, sh);
     ctx.restore();
   }
+
+  updateMiniPreviews();
+}
+
+function updateMiniPreviews() {
+  const p16 = document.getElementById('preview16');
+  const p32 = document.getElementById('preview32');
+  const p48 = document.getElementById('preview48');
+  if (!p16 || !p32 || !p48) return;
+
+  const offscreen = document.createElement('canvas');
+  offscreen.width = GRID;
+  offscreen.height = GRID;
+  const octx = offscreen.getContext('2d');
+  const imgData = octx.createImageData(GRID, GRID);
+  const data = imgData.data;
+
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      const c = pixels[idx(x, y)];
+      const i = (y * GRID + x) * 4;
+      if (c && c.startsWith('#')) {
+        let r = 0, g = 0, b = 0;
+        if (c.length === 7) {
+          r = parseInt(c.slice(1, 3), 16) || 0;
+          g = parseInt(c.slice(3, 5), 16) || 0;
+          b = parseInt(c.slice(5, 7), 16) || 0;
+        } else if (c.length === 4) {
+          r = parseInt(c[1] + c[1], 16) || 0;
+          g = parseInt(c[2] + c[2], 16) || 0;
+          b = parseInt(c[3] + c[3], 16) || 0;
+        }
+        data[i] = r;
+        data[i + 1] = g;
+        data[i + 2] = b;
+        data[i + 3] = 255;
+      } else {
+        data[i + 3] = 0;
+      }
+    }
+  }
+  octx.putImageData(imgData, 0, 0);
+
+  const drawPreview = (cv, size) => {
+    const pctx = cv.getContext('2d');
+    pctx.clearRect(0, 0, size, size);
+    pctx.imageSmoothingEnabled = false;
+    pctx.drawImage(offscreen, 0, 0, size, size);
+  };
+
+  drawPreview(p16, 16);
+  drawPreview(p32, 32);
+  drawPreview(p48, 48);
 }
 
 function updateSelInfo() {
