@@ -2,8 +2,6 @@
 
 All notable user-facing changes to PixelPair will be documented here.
 
-The project has not published its first public release yet.
-
 ## [0.1.0] - 2026-08-23
 
 ### Added
