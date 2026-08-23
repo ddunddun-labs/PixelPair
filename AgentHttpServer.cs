@@ -558,6 +558,28 @@ namespace PixelPair
                     await WriteJson(res, 200, _canvas.ScaleRect(cx, cy, cw, ch, scale, scaleX, scaleY, targetW, targetH, center));
                     return;
                 }
+                if (req.HttpMethod == "POST" && path == "/outline_object")
+                {
+                    using var doc = JsonDocument.Parse(await ReadBody(req));
+                    var el = doc.RootElement;
+                    string color = GetStr(el, "color") ?? "#000000";
+                    bool diag = el.TryGetProperty("diagonal", out var dp) && (dp.ValueKind == JsonValueKind.True || (dp.ValueKind == JsonValueKind.String && dp.GetString() == "true"));
+                    ReadClip(el, out int? cx, out int? cy, out int? cw, out int? ch);
+                    await WriteJson(res, 200, _canvas.OutlineObject(color, diag, cx, cy, cw, ch));
+                    return;
+                }
+                if (req.HttpMethod == "POST" && path == "/drop_shadow")
+                {
+                    using var doc = JsonDocument.Parse(await ReadBody(req));
+                    var el = doc.RootElement;
+                    int dx = GetInt(el, "dx", 0);
+                    int dy = GetInt(el, "dy", 4);
+                    string? color = GetStr(el, "color");
+                    string type = GetStr(el, "type") ?? "object";
+                    ReadClip(el, out int? cx, out int? cy, out int? cw, out int? ch);
+                    await WriteJson(res, 200, _canvas.DropShadow(dx, dy, color, type, cx, cy, cw, ch));
+                    return;
+                }
 
                 if (req.HttpMethod == "GET" && await TryServeStatic(req.Url?.AbsolutePath ?? "/", res))
                 {
@@ -579,7 +601,7 @@ namespace PixelPair
                         "POST /layers/move", "POST /layers/opacity", "POST /flood_erase", "POST /recolor",
                         "POST /fill_rect", "POST /clear_rect", "POST /flip_rect", "POST /shift_rect", "POST /rotate_rect",
                         "POST /draw_line", "POST /draw_circle", "POST /draw_ellipse", "POST /round_corners",
-                        "POST /center_canvas", "POST /scale_rect"
+                        "POST /center_canvas", "POST /scale_rect", "POST /outline_object", "POST /drop_shadow"
                     }
                 });
             }

@@ -95,17 +95,19 @@ PixelPair는 수천 개 픽셀을 하나씩 보내는 대신 의미 있는 단�
 | --- | --- |
 | 조회 | `get_canvas`, `get_layers` |
 | 그리기 | `set_pixels`, `fill_rect`, `clear_rect`, `draw_line`, `draw_circle`, `draw_ellipse`, `draw_polygon`, `round_corners` |
-| 변환 | `flood_erase`, `recolor`, `flip_rect`, `shift_rect`, `rotate_rect`, `center_canvas`, `scale_rect` |
+| 변환 | `flood_erase`, `recolor`, `flip_rect`, `shift_rect`, `rotate_rect`, `center_canvas`, `scale_rect`, `outline_object`, `drop_shadow` |
 | 배치 | `apply_operations` |
 | 레이어 | `add_layer`, `select_layer`, `remove_layer`, `rename_layer`, `duplicate_layer`, `move_layer`, `set_layer_visible`, `set_layer_locked`, `set_layer_opacity`, `merge_layer_down` |
 | 프로젝트 | `export_project`, `import_project` |
 | 결과/히스토리 | `export_icon`, `undo`, `redo` |
 
-넓은 영역은 `fill_rect`, `recolor`, 변환 도구(`center_canvas`, `scale_rect`, `shift_rect` 등) 또는 `apply_operations`를 우선 사용하고, `set_pixels`는 소수 픽셀의 정밀 수정에 사용하는 것이 좋습니다.
+넓은 영역은 `fill_rect`, `recolor`, 변환 도구(`center_canvas`, `scale_rect`, `outline_object`, `drop_shadow` 등) 또는 `apply_operations`를 우선 사용하고, `set_pixels`는 소수 픽셀의 정밀 수정에 사용하는 것이 좋습니다.
 
 - **`center_canvas`**: 활성 레이어 내 픽셀들의 바운딩 박스를 계산하여 64×64 캔버스 정중앙에 균등하게 자동 배치합니다 (`axis`: `both`, `horizontal`, `vertical`).
 - **`scale_rect`**: Nearest-Neighbor 보간법을 사용하여 도트 뭉개짐 없이 캐릭터나 지정 영역을 비율에 맞춰 확대/축소합니다. 영역 좌표(`x, y, w, h`)를 생략하면 전체 캐릭터를 자동으로 감지합니다.
-- **`apply_operations`**: 여러 도형 그리기, 색상 치환, 확대 및 중앙 정렬 작업을 하나의 원자적 요청으로 묶어 1단계 Undo 히스토리로 처리합니다.
+- **`outline_object`**: 캐릭터 외곽에 1픽셀 두께의 테두리를 둘러 선명한 아이콘/스티커 스타일을 만듭니다 (`color`, `diagonal` 8방향 지원).
+- **`drop_shadow`**: 사선 실루엣 그림자(`type="object"`) 또는 바닥 타원 그림자(`type="ground"`)를 자동 생성하여 입체감을 부여합니다.
+- **`apply_operations`**: 여러 도형 그리기, 색상 치환, 확대, 외곽선 및 그림자 작업을 하나의 원자적 요청으로 묶어 1단계 Undo 히스토리로 처리합니다.
 
 ## 로컬 보안 모델
 

@@ -95,17 +95,19 @@ PixelPair exposes focused tools rather than requiring an agent to send thousands
 | --- | --- |
 | Inspect | `get_canvas`, `get_layers` |
 | Draw | `set_pixels`, `fill_rect`, `clear_rect`, `draw_line`, `draw_circle`, `draw_ellipse`, `draw_polygon`, `round_corners` |
-| Transform | `flood_erase`, `recolor`, `flip_rect`, `shift_rect`, `rotate_rect`, `center_canvas`, `scale_rect` |
+| Transform | `flood_erase`, `recolor`, `flip_rect`, `shift_rect`, `rotate_rect`, `center_canvas`, `scale_rect`, `outline_object`, `drop_shadow` |
 | Batch | `apply_operations` |
 | Layers | `add_layer`, `select_layer`, `remove_layer`, `rename_layer`, `duplicate_layer`, `move_layer`, `set_layer_visible`, `set_layer_locked`, `set_layer_opacity`, `merge_layer_down` |
 | Project | `export_project`, `import_project` |
 | Result/history | `export_icon`, `undo`, `redo` |
 
-For larger edits, prefer semantic operations such as `fill_rect`, `recolor`, transform tools (`center_canvas`, `scale_rect`, `shift_rect`, etc.), or `apply_operations`. Use `set_pixels` for small precision fixes.
+For larger edits, prefer semantic operations such as `fill_rect`, `recolor`, transform tools (`center_canvas`, `scale_rect`, `outline_object`, `drop_shadow` etc.), or `apply_operations`. Use `set_pixels` for small precision fixes.
 
 - **`center_canvas`**: Computes the bounding box of active layer pixels and centers the drawing within the 64×64 canvas (`axis`: `both`, `horizontal`, `vertical`).
 - **`scale_rect`**: Rescales a drawing or region using nearest-neighbor interpolation without blurring pixel art. Automatically detects character bounding boxes if coordinates (`x, y, w, h`) are omitted.
-- **`apply_operations`**: Batches multiple shapes, recoloring, scaling, and centering commands into a single atomic request with 1-step undo history.
+- **`outline_object`**: Generates a crisp 1-pixel border around drawings for icon/sticker styling (`color`, `diagonal` 8-way support).
+- **`drop_shadow`**: Adds silhouette offset shadows (`type="object"`) or soft ground oval shadows (`type="ground"`) to give depth.
+- **`apply_operations`**: Batches multiple shapes, recoloring, scaling, outlines, and shadows into a single atomic request with 1-step undo history.
 
 ## Local security model
 

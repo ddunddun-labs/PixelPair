@@ -200,17 +200,35 @@ def main() -> None:
     scaled_pixels = canvas_pixels()
     assert len(scaled_pixels) == 16
 
-    # apply_operations with center_canvas and scale_rect
+    # outline_object test: 2x2 box has 8 orthogonal neighbor cells
+    json_request("POST", "/clear", body={})
+    json_request("POST", "/fill_rect", body={"x": 10, "y": 10, "w": 2, "h": 2, "color": "#38BDF8"})
+    res_outline, _ = json_request("POST", "/outline_object", body={"color": "#000000", "diagonal": False})
+    assert res_outline["ok"] is True
+    assert res_outline["count"] == 8
+    assert len(canvas_pixels()) == 12
+
+    # drop_shadow test (object silhouette)
+    json_request("POST", "/clear", body={})
+    json_request("POST", "/fill_rect", body={"x": 10, "y": 10, "w": 2, "h": 2, "color": "#38BDF8"})
+    res_shadow, _ = json_request("POST", "/drop_shadow", body={"dx": 2, "dy": 2, "color": "#1E2022", "type": "object"})
+    assert res_shadow["ok"] is True
+    assert res_shadow["count"] == 4
+    assert len(canvas_pixels()) == 8
+
+    # apply_operations with center_canvas, scale_rect, outline_object, drop_shadow
     json_request("POST", "/clear", body={})
     res_ops, _ = json_request("POST", "/operations", body={
         "operations": [
-            {"op": "fill_rect", "x": 0, "y": 0, "w": 4, "h": 4, "color": "#38BDF8"},
+            {"op": "fill_rect", "x": 0, "y": 0, "w": 2, "h": 2, "color": "#38BDF8"},
             {"op": "scale_rect", "scale": 2.0, "center": True},
+            {"op": "outline_object", "color": "#000000"},
+            {"op": "drop_shadow", "dx": 1, "dy": 1, "color": "#1E2022"},
             {"op": "center_canvas", "axis": "both"}
         ]
     })
     assert res_ops["ok"] is True
-    assert len(canvas_pixels()) == 64
+    assert len(canvas_pixels()) > 16
 
     # Filesystem path operations are agent-only and require the per-process local token.
     export_path = Path(tempfile.gettempdir()) / f"pixelpair-smoke-{os.getpid()}.png"
