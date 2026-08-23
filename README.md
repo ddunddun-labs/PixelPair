@@ -101,7 +101,11 @@ PixelPair exposes focused tools rather than requiring an agent to send thousands
 | Project | `export_project`, `import_project` |
 | Result/history | `export_icon`, `undo`, `redo` |
 
-For larger edits, prefer semantic operations such as `fill_rect`, `recolor`, transforms, or `apply_operations`. Use `set_pixels` for small precision fixes.
+For larger edits, prefer semantic operations such as `fill_rect`, `recolor`, transform tools (`center_canvas`, `scale_rect`, `shift_rect`, etc.), or `apply_operations`. Use `set_pixels` for small precision fixes.
+
+- **`center_canvas`**: Computes the bounding box of active layer pixels and centers the drawing within the 64×64 canvas (`axis`: `both`, `horizontal`, `vertical`).
+- **`scale_rect`**: Rescales a drawing or region using nearest-neighbor interpolation without blurring pixel art. Automatically detects character bounding boxes if coordinates (`x, y, w, h`) are omitted.
+- **`apply_operations`**: Batches multiple shapes, recoloring, scaling, and centering commands into a single atomic request with 1-step undo history.
 
 ## Local security model
 

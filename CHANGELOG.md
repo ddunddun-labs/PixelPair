@@ -2,6 +2,19 @@
 
 All notable user-facing changes to PixelPair will be documented here.
 
+## [0.1.1] - 2026-08-23
+
+### Added
+
+- Added `center_canvas` MCP tool to automatically center drawing contents within the 64×64 canvas.
+- Added `scale_rect` MCP tool to rescale drawings/regions using nearest-neighbor interpolation with automatic bounding-box support.
+- Added `center_canvas` and `scale_rect` support to atomic `apply_operations` batching.
+- Added regression tests for `center_canvas`, `scale_rect`, and Base64 image imports in `tests/smoke_test.py`.
+
+### Fixed
+
+- Fixed browser drag-and-drop / image imports to allow Base64 JSON payloads without requiring local agent tokens.
+
 ## [0.1.0] - 2026-08-23
 
 ### Added
@@ -26,4 +39,5 @@ All notable user-facing changes to PixelPair will be documented here.
 - Windows portability of the smoke-test MCP subprocess handling.
 - `draw_polygon` now honors `stroke_width`, with regression coverage for thick outlines.
 
+[0.1.1]: https://github.com/ddunddun-labs/PixelPair/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ddunddun-labs/PixelPair/releases/tag/v0.1.0
