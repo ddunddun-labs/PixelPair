@@ -95,7 +95,7 @@ PixelPair는 수천 개 픽셀을 하나씩 보내는 대신 의미 있는 단�
 | --- | --- |
 | 조회 | `get_canvas`, `get_layers` |
 | 그리기 | `set_pixels`, `fill_rect`, `clear_rect`, `draw_line`, `draw_circle`, `draw_ellipse`, `draw_polygon`, `round_corners` |
-| 변환 | `flood_erase`, `recolor`, `flip_rect`, `shift_rect`, `rotate_rect` |
+| 변환 | `flood_erase`, `recolor`, `flip_rect`, `shift_rect`, `rotate_rect`, `center_canvas`, `scale_rect` |
 | 배치 | `apply_operations` |
 | 레이어 | `add_layer`, `select_layer`, `remove_layer`, `rename_layer`, `duplicate_layer`, `move_layer`, `set_layer_visible`, `set_layer_locked`, `set_layer_opacity`, `merge_layer_down` |
 | 프로젝트 | `export_project`, `import_project` |

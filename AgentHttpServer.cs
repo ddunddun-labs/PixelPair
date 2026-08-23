@@ -532,6 +532,32 @@ namespace PixelPair
                         GetStr(el, "fill_color")));
                     return;
                 }
+                if (req.HttpMethod == "POST" && path == "/center_canvas")
+                {
+                    string body = await ReadBody(req);
+                    string axis = "both";
+                    if (!string.IsNullOrWhiteSpace(body))
+                    {
+                        using var doc = JsonDocument.Parse(body);
+                        axis = GetStr(doc.RootElement, "axis") ?? "both";
+                    }
+                    await WriteJson(res, 200, _canvas.CenterCanvas(axis));
+                    return;
+                }
+                if (req.HttpMethod == "POST" && path == "/scale_rect")
+                {
+                    using var doc = JsonDocument.Parse(await ReadBody(req));
+                    var el = doc.RootElement;
+                    ReadClip(el, out int? cx, out int? cy, out int? cw, out int? ch);
+                    double? scale = el.TryGetProperty("scale", out var sp) && (sp.TryGetDouble(out double s) || (sp.ValueKind == JsonValueKind.String && double.TryParse(sp.GetString(), out s))) ? s : null;
+                    double? scaleX = el.TryGetProperty("scale_x", out var sxp) && (sxp.TryGetDouble(out double sx) || (sxp.ValueKind == JsonValueKind.String && double.TryParse(sxp.GetString(), out sx))) ? sx : null;
+                    double? scaleY = el.TryGetProperty("scale_y", out var syp) && (syp.TryGetDouble(out double sy) || (syp.ValueKind == JsonValueKind.String && double.TryParse(syp.GetString(), out sy))) ? sy : null;
+                    int? targetW = el.TryGetProperty("target_w", out var twp) && twp.TryGetInt32(out int tw) ? tw : null;
+                    int? targetH = el.TryGetProperty("target_h", out var thp) && thp.TryGetInt32(out int th) ? th : null;
+                    bool center = !el.TryGetProperty("center", out var cp) || cp.ValueKind == JsonValueKind.True || (cp.ValueKind == JsonValueKind.String && cp.GetString() == "true");
+                    await WriteJson(res, 200, _canvas.ScaleRect(cx, cy, cw, ch, scale, scaleX, scaleY, targetW, targetH, center));
+                    return;
+                }
 
                 if (req.HttpMethod == "GET" && await TryServeStatic(req.Url?.AbsolutePath ?? "/", res))
                 {
@@ -552,7 +578,8 @@ namespace PixelPair
                         "POST /layers/locked", "POST /layers/merge", "POST /layers/rename", "POST /layers/duplicate",
                         "POST /layers/move", "POST /layers/opacity", "POST /flood_erase", "POST /recolor",
                         "POST /fill_rect", "POST /clear_rect", "POST /flip_rect", "POST /shift_rect", "POST /rotate_rect",
-                        "POST /draw_line", "POST /draw_circle", "POST /draw_ellipse", "POST /round_corners"
+                        "POST /draw_line", "POST /draw_circle", "POST /draw_ellipse", "POST /round_corners",
+                        "POST /center_canvas", "POST /scale_rect"
                     }
                 });
             }

@@ -255,22 +255,24 @@ const TOOLS = [
   {
     name: "apply_operations",
     description:
-      "복잡한 아이콘의 여러 원시 작업을 한 요청으로 묶는다. fill_rect, clear_rect, flip_rect, shift_rect, rotate_rect, draw_line, draw_circle, draw_ellipse, round_corners, recolor, set_pixels를 operations 순서대로 적용하며 Undo는 한 단계만 만든다. [원칙]: 억지로 부위별 레이어를 쪼개지 말고 캐릭터 본체는 유기적인 명암을 위해 한 레이어에 완성도 높게 그리고, 배경/특수효과처럼 기능적으로 분리될 때만 레이어를 나눈다. symmetry('vertical')와 pixel_perfect(true) 옵션을 적극 활용할 것.",
+      "복잡한 아이콘의 여러 원시 작업을 한 요청으로 묶는다. fill_rect, clear_rect, flip_rect, shift_rect, rotate_rect, draw_line, draw_circle, draw_ellipse, round_corners, recolor, set_pixels, center_canvas, scale_rect를 operations 순서대로 적용하며 Undo는 한 단계만 만든다. [원칙]: 억지로 부위별 레이어를 쪼개지 말고 캐릭터 본체는 유기적인 명암을 위해 한 레이어에 완성도 높게 그리고, 배경/특수효과처럼 기능적으로 분리될 때만 레이어를 나눈다. symmetry('vertical')와 pixel_perfect(true) 옵션을 적극 활용할 것.",
     inputSchema: {
       type: "object",
       properties: {
         operations: {
           type: "array",
-          description: "각 객체의 op는 fill_rect, clear_rect, flip_rect, shift_rect, rotate_rect, draw_line, draw_circle, draw_ellipse, draw_polygon, round_corners, recolor, set_pixels 중 하나. symmetry, pixel_perfect 옵션을 지원한다.",
+          description: "각 객체의 op는 fill_rect, clear_rect, flip_rect, shift_rect, rotate_rect, draw_line, draw_circle, draw_ellipse, draw_polygon, round_corners, recolor, set_pixels, center_canvas, scale_rect 중 하나. symmetry, pixel_perfect 옵션을 지원한다.",
           items: {
             type: "object",
             properties: {
-              op: { type: "string", enum: ["fill_rect", "clear_rect", "flip_rect", "shift_rect", "rotate_rect", "draw_line", "draw_circle", "draw_ellipse", "draw_polygon", "round_corners", "recolor", "set_pixels"] },
+              op: { type: "string", enum: ["fill_rect", "clear_rect", "flip_rect", "shift_rect", "rotate_rect", "draw_line", "draw_circle", "draw_ellipse", "draw_polygon", "round_corners", "recolor", "set_pixels", "center_canvas", "scale_rect"] },
               x: { type: "integer" }, y: { type: "integer" }, w: { type: "integer" }, h: { type: "integer" },
               x0: { type: "integer" }, y0: { type: "integer" }, x1: { type: "integer" }, y1: { type: "integer" },
               points: { type: "array", description: "draw_polygon용 꼭짓점 배열 [[x0,y0], [x1,y1], ...]" },
               radius: { type: "integer" }, rx: { type: "integer" }, ry: { type: "integer" }, color: { type: "string" }, fill: { type: "boolean" }, stroke_width: { type: "integer", description: "fill=false일 때 테두리 두께. 2 이상이면 링을 한 번에 그린다." },
               fill_color: { type: "string", description: "round_corners가 지운 모서리를 투명 대신 이 색으로 채운다." },
+              axis: { type: "string", enum: ["both", "horizontal", "vertical"], description: "center_canvas용 정렬 축" },
+              scale: { type: "number", description: "scale_rect용 배율" }, scale_x: { type: "number" }, scale_y: { type: "number" }, target_w: { type: "integer" }, target_h: { type: "integer" }, center: { type: "boolean" },
               symmetry: { type: "string", enum: ["vertical", "horizontal", "both", "none"], description: "실시간 대칭 (vertical: 좌우 대칭)" },
               pixel_perfect: { type: "boolean", description: "draw_line 등에서 L자형 코너 겹침 도트 자동 제거" },
               from: { type: "string" }, to: { type: "string" }, tolerance: { type: "integer" }, mode: { type: "string", enum: ["partial", "full"] },
@@ -593,6 +595,39 @@ const TOOLS = [
       required: ["x", "y", "w", "h", "radius"],
     },
   },
+  {
+    name: "center_canvas",
+    description: "현재 활성 레이어의 픽셀들을 캔버스(64x64) 정중앙에 균등하게 정렬하여 이동시킨다.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        axis: {
+          type: "string",
+          enum: ["both", "horizontal", "vertical"],
+          description: "정렬 축 (기본: both). horizontal: 좌우만 중앙 정렬, vertical: 상하만 중앙 정렬",
+        },
+      },
+    },
+  },
+  {
+    name: "scale_rect",
+    description: "지정된 사각형 영역(또는 생략 시 전체 픽셀 바운딩 박스)을 Nearest-Neighbor 알고리즘으로 비율에 맞춰 확대/축소한다.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        x: { type: "integer", description: "선택. 원본 영역 x (생략 시 바운딩 박스 자동)" },
+        y: { type: "integer", description: "선택. 원본 영역 y (생략 시 바운딩 박스 자동)" },
+        w: { type: "integer", description: "선택. 원본 영역 너비 (생략 시 바운딩 박스 자동)" },
+        h: { type: "integer", description: "선택. 원본 영역 높이 (생략 시 바운딩 박스 자동)" },
+        scale: { type: "number", description: "확대/축소 배율 (예: 1.5는 150%, 0.8은 80%)" },
+        scale_x: { type: "number", description: "가로 배율 (scale 대신 가로/세로 독립 지정 시)" },
+        scale_y: { type: "number", description: "세로 배율 (scale 대신 가로/세로 독립 지정 시)" },
+        target_w: { type: "integer", description: "목표 너비(픽셀)" },
+        target_h: { type: "integer", description: "목표 높이(픽셀)" },
+        center: { type: "boolean", description: "기본 true. 스케일된 결과를 캔버스 중앙에 자동 배치" },
+      },
+    },
+  },
 ];
 
 async function callTool(name, args) {
@@ -731,6 +766,17 @@ async function callTool(name, args) {
     case "round_corners":
       return okText(await api("POST", "/round_corners", {
         x: args.x, y: args.y, w: args.w, h: args.h, radius: args.radius, fill_color: args.fill_color,
+      }));
+    case "center_canvas":
+      return okText(await api("POST", "/center_canvas", {
+        axis: args.axis,
+      }));
+    case "scale_rect":
+      return okText(await api("POST", "/scale_rect", {
+        x: args.x, y: args.y, w: args.w, h: args.h,
+        scale: args.scale, scale_x: args.scale_x, scale_y: args.scale_y,
+        target_w: args.target_w, target_h: args.target_h,
+        center: args.center,
       }));
     default:
       return errText(`unknown tool: ${name}`);

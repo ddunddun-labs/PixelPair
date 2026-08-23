@@ -714,6 +714,35 @@ namespace PixelPair
             return new { ok = true, radius = r, count = n };
         }
 
+        public object CenterCanvas(string? axis = "both")
+        {
+            SaveUndoStateForEditableLayer();
+            int dx, dy;
+            int minX, minY, maxX, maxY;
+            lock (_pixelLock)
+            {
+                var active = GetEditableActiveLayerLocked();
+                (dx, dy, minX, minY, maxX, maxY) = CenterCanvasLocked(active.Pixels, axis);
+            }
+            RaiseChanged();
+            Log($"에이전트: center_canvas axis={axis} dx={dx}, dy={dy}");
+            return new { ok = true, dx, dy, min_x = minX, min_y = minY, max_x = maxX, max_y = maxY };
+        }
+
+        public object ScaleRect(int? x = null, int? y = null, int? w = null, int? h = null, double? scale = null, double? scaleX = null, double? scaleY = null, int? targetW = null, int? targetH = null, bool center = true)
+        {
+            SaveUndoStateForEditableLayer();
+            int count, srcW, srcH, dstW, dstH;
+            lock (_pixelLock)
+            {
+                var active = GetEditableActiveLayerLocked();
+                (count, srcW, srcH, dstW, dstH) = ScaleRectLocked(active.Pixels, x, y, w, h, scale, scaleX, scaleY, targetW, targetH, center);
+            }
+            RaiseChanged();
+            Log($"에이전트: scale_rect {srcW}x{srcH} -> {dstW}x{dstH} ({count}픽셀)");
+            return new { ok = true, count, src_w = srcW, src_h = srcH, dst_w = dstW, dst_h = dstH };
+        }
+
         public object ApplyOperations(JsonElement operations)
         {
             if (operations.ValueKind != JsonValueKind.Array)
@@ -838,6 +867,19 @@ namespace PixelPair
                         throw new ArgumentException("set_pixels.pixels 배열이 필요하다.");
                     var list = JsonSerializer.Deserialize<List<PixelInfo>>(pixels.GetRawText()) ?? new();
                     ApplyList(grid, list, string.Equals(OperationString(operation, "mode"), "full", StringComparison.OrdinalIgnoreCase), sym);
+                    return;
+                case "center_canvas":
+                    CenterCanvasLocked(grid, OperationString(operation, "axis") ?? "both");
+                    return;
+                case "scale_rect":
+                    int? scx = OperationNullableInt(operation, "x"), scy = OperationNullableInt(operation, "y"), scw = OperationNullableInt(operation, "w"), sch = OperationNullableInt(operation, "h");
+                    double? scale = OperationNullableDouble(operation, "scale");
+                    double? scaleX = OperationNullableDouble(operation, "scale_x");
+                    double? scaleY = OperationNullableDouble(operation, "scale_y");
+                    int? targetW = OperationNullableInt(operation, "target_w");
+                    int? targetH = OperationNullableInt(operation, "target_h");
+                    bool center = OperationBool(operation, "center", true);
+                    ScaleRectLocked(grid, scx, scy, scw, sch, scale, scaleX, scaleY, targetW, targetH, center);
                     return;
                 default:
                     throw new ArgumentException($"지원하지 않는 operation: {op}");
@@ -1020,6 +1062,131 @@ namespace PixelPair
                 }
             }
             return count;
+        }
+
+        private (int dx, int dy, int minX, int minY, int maxX, int maxY) CenterCanvasLocked(Rgba32?[,] grid, string? axis = "both")
+        {
+            int minX = GridSize, minY = GridSize, maxX = -1, maxY = -1;
+            for (int y = 0; y < GridSize; y++)
+            {
+                for (int x = 0; x < GridSize; x++)
+                {
+                    if (grid[x, y] != null)
+                    {
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            if (maxX < minX || maxY < minY)
+            {
+                return (0, 0, 0, 0, 0, 0);
+            }
+
+            int bw = maxX - minX + 1;
+            int bh = maxY - minY + 1;
+            int targetX = (GridSize - bw) / 2;
+            int targetY = (GridSize - bh) / 2;
+
+            int dx = targetX - minX;
+            int dy = targetY - minY;
+
+            bool hOnly = string.Equals(axis, "horizontal", StringComparison.OrdinalIgnoreCase) || string.Equals(axis, "x", StringComparison.OrdinalIgnoreCase) || string.Equals(axis, "h", StringComparison.OrdinalIgnoreCase);
+            bool vOnly = string.Equals(axis, "vertical", StringComparison.OrdinalIgnoreCase) || string.Equals(axis, "y", StringComparison.OrdinalIgnoreCase) || string.Equals(axis, "v", StringComparison.OrdinalIgnoreCase);
+
+            if (hOnly) dy = 0;
+            if (vOnly) dx = 0;
+
+            if (dx != 0 || dy != 0)
+            {
+                ShiftRectLocked(grid, dx, dy, 0, 0, GridSize, GridSize, wrap: false);
+            }
+
+            return (dx, dy, minX, minY, maxX, maxY);
+        }
+
+        private (int count, int srcW, int srcH, int dstW, int dstH) ScaleRectLocked(Rgba32?[,] grid, int? x, int? y, int? w, int? h, double? scale, double? scaleX, double? scaleY, int? targetW, int? targetH, bool center = true)
+        {
+            int srcX0, srcY0, srcX1, srcY1;
+            if (x.HasValue && y.HasValue && w.HasValue && h.HasValue)
+            {
+                ClipRect(x, y, w, h, out srcX0, out srcY0, out srcX1, out srcY1);
+            }
+            else
+            {
+                int minX = GridSize, minY = GridSize, maxX = -1, maxY = -1;
+                for (int yy = 0; yy < GridSize; yy++)
+                {
+                    for (int xx = 0; xx < GridSize; xx++)
+                    {
+                        if (grid[xx, yy] != null)
+                        {
+                            if (xx < minX) minX = xx;
+                            if (xx > maxX) maxX = xx;
+                            if (yy < minY) minY = yy;
+                            if (yy > maxY) maxY = yy;
+                        }
+                    }
+                }
+                if (maxX < minX || maxY < minY)
+                {
+                    return (0, 0, 0, 0, 0);
+                }
+                srcX0 = minX;
+                srcY0 = minY;
+                srcX1 = maxX + 1;
+                srcY1 = maxY + 1;
+            }
+
+            int srcW = srcX1 - srcX0;
+            int srcH = srcY1 - srcY0;
+            if (srcW <= 0 || srcH <= 0) return (0, 0, 0, 0, 0);
+
+            double sx = scaleX ?? scale ?? 1.0;
+            double sy = scaleY ?? scale ?? 1.0;
+
+            int dstW = targetW ?? Math.Clamp((int)Math.Round(srcW * sx), 1, GridSize);
+            int dstH = targetH ?? Math.Clamp((int)Math.Round(srcH * sy), 1, GridSize);
+
+            var copy = new Rgba32?[srcW, srcH];
+            for (int yy = 0; yy < srcH; yy++)
+            {
+                for (int xx = 0; xx < srcW; xx++)
+                {
+                    copy[xx, yy] = grid[srcX0 + xx, srcY0 + yy];
+                    grid[srcX0 + xx, srcY0 + yy] = null;
+                }
+            }
+
+            int dstX = center ? (GridSize - dstW) / 2 : srcX0;
+            int dstY = center ? (GridSize - dstH) / 2 : srcY0;
+
+            int count = 0;
+            for (int ty = 0; ty < dstH; ty++)
+            {
+                int syPos = Math.Clamp((int)(ty * srcH / (double)dstH), 0, srcH - 1);
+                int outY = dstY + ty;
+                if (outY < 0 || outY >= GridSize) continue;
+
+                for (int tx = 0; tx < dstW; tx++)
+                {
+                    int sxPos = Math.Clamp((int)(tx * srcW / (double)dstW), 0, srcW - 1);
+                    int outX = dstX + tx;
+                    if (outX < 0 || outX >= GridSize) continue;
+
+                    var c = copy[sxPos, syPos];
+                    if (c != null)
+                    {
+                        grid[outX, outY] = c;
+                        count++;
+                    }
+                }
+            }
+
+            return (count, srcW, srcH, dstW, dstH);
         }
 
         private int DrawLineLocked(Rgba32?[,] grid, int x0, int y0, int x1, int y1, Rgba32? color, bool pixelPerfect = false, string? symmetry = null)
@@ -1250,6 +1417,7 @@ namespace PixelPair
         private static string? OperationString(JsonElement operation, string name) => operation.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
         private static int OperationInt(JsonElement operation, string name, int fallback = 0) => operation.TryGetProperty(name, out var value) && value.TryGetInt32(out int result) ? result : fallback;
         private static int? OperationNullableInt(JsonElement operation, string name) => operation.TryGetProperty(name, out var value) && value.TryGetInt32(out int result) ? result : null;
+        private static double? OperationNullableDouble(JsonElement operation, string name) => operation.TryGetProperty(name, out var value) && (value.TryGetDouble(out double d) || (value.ValueKind == JsonValueKind.String && double.TryParse(value.GetString(), out d))) ? d : null;
         private static bool OperationBool(JsonElement operation, string name, bool fallback = false) => operation.TryGetProperty(name, out var value) ? (value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.String && bool.TryParse(value.GetString(), out bool result) && result) : fallback;
 
         private void SaveUndoState()
