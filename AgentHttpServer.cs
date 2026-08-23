@@ -298,11 +298,9 @@ namespace PixelPair
                 }
                 if (req.HttpMethod == "POST" && path == "/import")
                 {
-                    // Browser uploads use raw image bytes. JSON imports can name a local path, so they are agent-only.
-                    bool rawImageUpload = (req.ContentType ?? "").StartsWith("image/", StringComparison.OrdinalIgnoreCase);
-                    if (!rawImageUpload && !await RequireAgentToken(req, res)) return;
-                    var imp = await ReadImportRequest(req);
-                    await WriteJson(res, 200, _canvas.Import(imp.Bytes, imp.MaxColors, imp.KnockoutCorners));
+                    var imp = await ReadImportRequest(req, res);
+                    if (imp == null) return;
+                    await WriteJson(res, 200, _canvas.Import(imp.Value.Bytes, imp.Value.MaxColors, imp.Value.KnockoutCorners));
                     return;
                 }
                 if (req.HttpMethod == "POST" && path == "/pixels")
@@ -717,7 +715,7 @@ namespace PixelPair
 
         private readonly record struct ImportRequest(byte[] Bytes, int MaxColors, bool KnockoutCorners);
 
-        private static async Task<ImportRequest> ReadImportRequest(HttpListenerRequest req)
+        private async Task<ImportRequest?> ReadImportRequest(HttpListenerRequest req, HttpListenerResponse res)
         {
             string? ctype = req.ContentType ?? "";
             if (ctype.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
@@ -754,10 +752,11 @@ namespace PixelPair
             }
             else if (doc.RootElement.TryGetProperty("path", out var pathProp))
             {
-                string? path = pathProp.GetString();
-                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-                    throw new FileNotFoundException("이미지 경로를 찾을 수 없다.", path);
-                bytes = await File.ReadAllBytesAsync(path);
+                if (!await RequireAgentToken(req, res)) return null;
+                string? filePath = pathProp.GetString();
+                if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+                    throw new FileNotFoundException("이미지 경로를 찾을 수 없다.", filePath);
+                bytes = await File.ReadAllBytesAsync(filePath);
             }
             else
                 throw new InvalidOperationException("image_base64 또는 path가 필요하다.");
