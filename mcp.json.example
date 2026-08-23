@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pixelpair": {
+      "command": "node",
+      "args": ["mcp/pixelpair-mcp.mjs"]
+    }
+  }
+}

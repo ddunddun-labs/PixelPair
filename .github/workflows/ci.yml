@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check mcp/pixelpair-mcp.mjs
+          node --check wwwroot/app.js
+
+      - name: Build
+        run: dotnet build PixelPair.csproj -c Release --nologo
+
+      # Keep the smoke tests dependency-free so they run on a stock GitHub runner.
+      - name: Run local HTTP smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project PixelPair.csproj -c Release --no-build > /tmp/pixelpair.log 2>&1 &
+          pid=$!
+          cleanup() {
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          python3 tests/smoke_test.py &&
+          python3 tests/polygon_smoke.py || {
+            echo "--- PixelPair server log ---"
+            cat /tmp/pixelpair.log
+            exit 1
+          }

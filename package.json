@@ -1,0 +1,10 @@
+{
+  "name": "pixelpair-demo",
+  "private": true,
+  "scripts": {
+    "demo:readme": "node scripts/demo/record-readme-demo.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.0"
+  }
+}

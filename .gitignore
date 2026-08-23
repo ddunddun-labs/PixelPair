@@ -1,0 +1,17 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+publish/
+*.nupkg
+*.log
+*.zip
+mcp/node_modules/
+node_modules/
+.mcp.json
+.claude/
+.cliagent-room/
+.codex/
+sixlabors.lic

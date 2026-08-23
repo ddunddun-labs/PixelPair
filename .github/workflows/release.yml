@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build distribution (4 platforms)
+        run: bash build-dist.sh
+
+      - name: Package platform zips
+        run: |
+          cd publish/dist
+          COMMON="mcp LICENSE THIRD_PARTY_NOTICES.md THIRD_PARTY_LICENSES"
+          zip -r ../../PixelPair-win-x64.zip win-x64 $COMMON
+          zip -r ../../PixelPair-linux-x64.zip linux-x64 $COMMON
+          zip -r ../../PixelPair-osx-x64.zip osx-x64 $COMMON UNVERIFIED.txt
+          zip -r ../../PixelPair-osx-arm64.zip osx-arm64 $COMMON UNVERIFIED.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            PixelPair-win-x64.zip \
+            PixelPair-linux-x64.zip \
+            PixelPair-osx-x64.zip \
+            PixelPair-osx-arm64.zip \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
