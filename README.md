@@ -95,7 +95,7 @@ PixelPair exposes focused tools rather than requiring an agent to send thousands
 | --- | --- |
 | Inspect | `get_canvas`, `get_layers` |
 | Draw | `set_pixels`, `fill_rect`, `clear_rect`, `draw_line`, `draw_circle`, `draw_ellipse`, `draw_polygon`, `round_corners` |
-| Transform | `flood_erase`, `recolor`, `flip_rect`, `shift_rect`, `rotate_rect` |
+| Transform | `flood_erase`, `recolor`, `flip_rect`, `shift_rect`, `rotate_rect`, `center_canvas`, `scale_rect` |
 | Batch | `apply_operations` |
 | Layers | `add_layer`, `select_layer`, `remove_layer`, `rename_layer`, `duplicate_layer`, `move_layer`, `set_layer_visible`, `set_layer_locked`, `set_layer_opacity`, `merge_layer_down` |
 | Project | `export_project`, `import_project` |

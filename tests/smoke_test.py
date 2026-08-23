@@ -179,6 +179,39 @@ def main() -> None:
     thick_count = len(canvas_pixels())
     assert thick_count > thin_count, f"stroke_width=3 ({thick_count}px) should produce more pixels than stroke_width=1 ({thin_count}px)"
 
+    # center_canvas test: draw off-center box and center it
+    json_request("POST", "/clear", body={})
+    json_request("POST", "/fill_rect", body={"x": 0, "y": 0, "w": 4, "h": 4, "color": "#38BDF8"})
+    res_center, _ = json_request("POST", "/center_canvas", body={"axis": "both"})
+    assert res_center["ok"] is True
+    assert res_center["dx"] == (64 - 4) // 2
+    assert res_center["dy"] == (64 - 4) // 2
+    centered_pixels = canvas_pixels()
+    assert len(centered_pixels) == 16
+    assert (30, 30) in centered_pixels
+
+    # scale_rect test: 2x2 box scaled 2x -> 4x4 (16px)
+    json_request("POST", "/clear", body={})
+    json_request("POST", "/fill_rect", body={"x": 0, "y": 0, "w": 2, "h": 2, "color": "#FF004D"})
+    res_scale, _ = json_request("POST", "/scale_rect", body={"scale": 2.0, "center": True})
+    assert res_scale["ok"] is True
+    assert res_scale["dst_w"] == 4
+    assert res_scale["dst_h"] == 4
+    scaled_pixels = canvas_pixels()
+    assert len(scaled_pixels) == 16
+
+    # apply_operations with center_canvas and scale_rect
+    json_request("POST", "/clear", body={})
+    res_ops, _ = json_request("POST", "/operations", body={
+        "operations": [
+            {"op": "fill_rect", "x": 0, "y": 0, "w": 4, "h": 4, "color": "#38BDF8"},
+            {"op": "scale_rect", "scale": 2.0, "center": True},
+            {"op": "center_canvas", "axis": "both"}
+        ]
+    })
+    assert res_ops["ok"] is True
+    assert len(canvas_pixels()) == 64
+
     # Filesystem path operations are agent-only and require the per-process local token.
     export_path = Path(tempfile.gettempdir()) / f"pixelpair-smoke-{os.getpid()}.png"
     try:
