@@ -5,6 +5,7 @@ Uses only Python's standard library so CI does not need extra packages.
 """
 from __future__ import annotations
 
+import base64
 import json
 import os
 import queue
@@ -212,7 +213,7 @@ def main() -> None:
         )
         assert imported["ok"] is True
 
-        # The browser UI uploads raw image bytes and must not need the agent token.
+        # The browser UI uploads raw image bytes or base64 JSON and must not need the agent token.
         status, _, payload = request(
             "POST",
             "/import",
@@ -220,6 +221,14 @@ def main() -> None:
             headers={"Content-Type": "image/png", "Origin": BASE},
         )
         assert status == 200, payload
+
+        b64_str = base64.b64encode(export_path.read_bytes()).decode("ascii")
+        json_imported, _ = json_request(
+            "POST",
+            "/import",
+            body={"image_base64": b64_str, "knockout_corners": False},
+        )
+        assert json_imported["ok"] is True
 
         # The MCP bridge must discover the token file automatically for path-based tools.
         mcp_export = Path(tempfile.gettempdir()) / f"pixelpair-mcp-smoke-{os.getpid()}.png"
