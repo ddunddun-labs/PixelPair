@@ -250,6 +250,31 @@ def main() -> None:
         )
         assert exported["ok"] is True and export_path.exists()
 
+        # Multi-resolution ICO export test (16, 24, 32, 48, 64, 128, 256)
+        ico_export_path = Path(tempfile.gettempdir()) / f"pixelpair-smoke-{os.getpid()}.ico"
+        ico_exported, _ = json_request(
+            "POST",
+            "/export",
+            body={"path": str(ico_export_path), "format": "ico"},
+            headers=auth_headers,
+        )
+        assert ico_exported["ok"] is True and ico_export_path.exists()
+        ico_data = ico_export_path.read_bytes()
+        assert len(ico_data) > 6 + 7 * 16
+        ico_count = int.from_bytes(ico_data[4:6], "little")
+        assert ico_count == 7, f"Expected 7 ICO images, got {ico_count}"
+        expected_dims = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (0, 0)]
+        for i, (exp_w, exp_h) in enumerate(expected_dims):
+            entry_off = 6 + i * 16
+            w = ico_data[entry_off]
+            h = ico_data[entry_off + 1]
+            assert (w, h) == (exp_w, exp_h), f"Entry {i} dimension mismatch: expected ({exp_w}, {exp_h}), got ({w}, {h})"
+            res_len = int.from_bytes(ico_data[entry_off + 8 : entry_off + 12], "little")
+            img_off = int.from_bytes(ico_data[entry_off + 12 : entry_off + 16], "little")
+            assert img_off + res_len <= len(ico_data)
+            assert ico_data[img_off : img_off + 8] == b"\x89PNG\r\n\x1a\n", f"Entry {i} PNG magic header missing"
+        ico_export_path.unlink(missing_ok=True)
+
         json_request(
             "POST",
             "/import",

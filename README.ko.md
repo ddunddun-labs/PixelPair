@@ -84,7 +84,8 @@ codex mcp add pixelpair -- node /absolute/path/to/mcp/pixelpair-mcp.mjs
 | 히스토리 | Undo / Redo, 최대 50단계 |
 | 가져오기 | PNG, JPG, WEBP, BMP, GIF, ICO, 클립보드, 드래그앤드롭 |
 | 프로젝트 | 전체 레이어 스택을 `.pxp`로 저장/불러오기 |
-| 내보내기 | PNG, ICO |
+| 내보내기 | PNG, 다중 해상도 ICO (16·24·32·48·64·128·256) |
+| 미리보기 | 16×16, 32×32, 48×48 실제 아이콘 크기 실시간 미니 프리뷰 |
 | 실시간 동기화 | Server-Sent Events(SSE)로 브라우저 자동 갱신 |
 
 ## MCP 도구
