@@ -84,7 +84,8 @@ Locked layers are enforced by the server, so a locked layer cannot be modified t
 | History | undo / redo, up to 50 steps |
 | Import | PNG, JPG, WEBP, BMP, GIF, ICO, clipboard, drag-and-drop |
 | Project | save/load the full layer stack as `.pxp` |
-| Export | PNG and ICO |
+| Export | PNG and multi-resolution ICO (16·24·32·48·64·128·256) |
+| Preview | Live mini previews for 16×16, 32×32, and 48×48 icon scales |
 | Live sync | browser updates through Server-Sent Events (SSE) |
 
 ## MCP tools

@@ -2,6 +2,16 @@
 
 All notable user-facing changes to PixelPair will be documented here.
 
+## [0.1.2] - 2026-08-24
+
+### Added
+
+- Added multi-resolution ICO export containing 16, 24, 32, 48, 64, 128, and 256 px icon frames in a single `.ico` file.
+- Added nearest-neighbor downscaling for pixel-perfect icon rendering across non-native canvas dimensions.
+- Added `outline_object` and `drop_shadow` MCP transform tools with atomic `apply_operations` integration.
+- Added live 16px, 32px, and 48px mini icon previews to the web UI.
+- Added automated multi-resolution ICO structure and PNG chunk integrity tests to `tests/smoke_test.py`.
+
 ## [0.1.1] - 2026-08-23
 
 ### Added
@@ -39,5 +49,6 @@ All notable user-facing changes to PixelPair will be documented here.
 - Windows portability of the smoke-test MCP subprocess handling.
 - `draw_polygon` now honors `stroke_width`, with regression coverage for thick outlines.
 
+[0.1.2]: https://github.com/ddunddun-labs/PixelPair/releases/tag/v0.1.2
 [0.1.1]: https://github.com/ddunddun-labs/PixelPair/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ddunddun-labs/PixelPair/releases/tag/v0.1.0

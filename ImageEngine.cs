@@ -147,13 +147,32 @@ namespace PixelPair
         public static byte[] RenderPng(Rgba32?[,] pixels, int gridSize, int outputSize)
         {
             using var image = new Image<Rgba32>(outputSize, outputSize);
-            int sc = Math.Max(1, outputSize / gridSize);
-            for (int y = 0; y < gridSize; y++)
+            if (outputSize >= gridSize)
             {
-                for (int x = 0; x < gridSize; x++)
+                int sc = Math.Max(1, outputSize / gridSize);
+                for (int y = 0; y < gridSize; y++)
                 {
-                    if (pixels[x, y] is not Rgba32 c) continue;
-                    FillBlock(image, x * sc, y * sc, sc, sc, c);
+                    for (int x = 0; x < gridSize; x++)
+                    {
+                        if (pixels[x, y] is not Rgba32 c) continue;
+                        FillBlock(image, x * sc, y * sc, sc, sc, c);
+                    }
+                }
+            }
+            else
+            {
+                // outputSize < gridSize: Nearest-Neighbor 다운샘플링
+                for (int y = 0; y < outputSize; y++)
+                {
+                    int gy = Math.Clamp(y * gridSize / outputSize, 0, gridSize - 1);
+                    for (int x = 0; x < outputSize; x++)
+                    {
+                        int gx = Math.Clamp(x * gridSize / outputSize, 0, gridSize - 1);
+                        if (pixels[gx, gy] is Rgba32 c)
+                        {
+                            image[x, y] = c;
+                        }
+                    }
                 }
             }
             using var ms = new MemoryStream();
@@ -185,35 +204,60 @@ namespace PixelPair
             File.WriteAllBytes(path, RenderPng(pixels, gridSize, outputSize));
         }
 
-        // PNG 기반 고품질 ICO 바이트 생성
-        public static byte[] RenderIco(Rgba32?[,] pixels, int gridSize, int outputSize)
+        // PNG 기반 다중 해상도 ICO 바이트 생성 (16, 24, 32, 48, 64, 128, 256)
+        public static byte[] RenderIco(Rgba32?[,] pixels, int gridSize, int[]? customSizes = null)
         {
-            byte[] pngBytes = RenderPng(pixels, gridSize, outputSize);
+            int[] sizes = customSizes is { Length: > 0 } ? customSizes : [16, 24, 32, 48, 64, 128, 256];
+            var pngEntries = new List<(int size, byte[] pngBytes)>();
+            foreach (int sz in sizes)
+            {
+                pngEntries.Add((sz, RenderPng(pixels, gridSize, sz)));
+            }
+
             using var ms = new MemoryStream();
             using (var writer = new BinaryWriter(ms, System.Text.Encoding.UTF8, leaveOpen: true))
             {
-                writer.Write((short)0);      // Reserved
-                writer.Write((short)1);      // Type (1 = Icon)
-                writer.Write((short)1);      // Count
+                writer.Write((short)0);                     // Reserved
+                writer.Write((short)1);                     // Type (1 = Icon)
+                writer.Write((short)pngEntries.Count);      // Count of images
 
-                byte w = (byte)(outputSize >= 256 ? 0 : outputSize);
-                byte h = (byte)(outputSize >= 256 ? 0 : outputSize);
-                writer.Write(w);
-                writer.Write(h);
-                writer.Write((byte)0);
-                writer.Write((byte)0);
-                writer.Write((short)1);
-                writer.Write((short)32);
-                writer.Write(pngBytes.Length);
-                writer.Write(22);
-                writer.Write(pngBytes);
+                int offset = 6 + (pngEntries.Count * 16);
+                foreach (var (size, pngBytes) in pngEntries)
+                {
+                    byte w = (byte)(size >= 256 ? 0 : size);
+                    byte h = (byte)(size >= 256 ? 0 : size);
+                    writer.Write(w);                        // Width
+                    writer.Write(h);                        // Height
+                    writer.Write((byte)0);                  // ColorCount
+                    writer.Write((byte)0);                  // Reserved
+                    writer.Write((short)1);                 // Planes
+                    writer.Write((short)32);                // BitCount (32-bit RGBA PNG)
+                    writer.Write(pngBytes.Length);          // BytesInRes
+                    writer.Write(offset);                   // ImageOffset
+                    offset += pngBytes.Length;
+                }
+
+                foreach (var (_, pngBytes) in pngEntries)
+                {
+                    writer.Write(pngBytes);
+                }
             }
             return ms.ToArray();
         }
 
+        public static byte[] RenderIco(Rgba32?[,] pixels, int gridSize, int outputSize)
+        {
+            return RenderIco(pixels, gridSize, (int[])null!);
+        }
+
+        public static void SaveIco(string path, Rgba32?[,] pixels, int gridSize, int[]? customSizes = null)
+        {
+            File.WriteAllBytes(path, RenderIco(pixels, gridSize, customSizes));
+        }
+
         public static void SaveIco(string path, Rgba32?[,] pixels, int gridSize, int outputSize)
         {
-            File.WriteAllBytes(path, RenderIco(pixels, gridSize, outputSize));
+            File.WriteAllBytes(path, RenderIco(pixels, gridSize));
         }
 
         private static void FillBlock(Image<Rgba32> image, int px, int py, int w, int h, Rgba32 color)
