@@ -38,7 +38,34 @@ PixelPair가 로컬 서버를 시작하고 기본 브라우저에서 편집기�
 
 ### 2. 코딩 에이전트 연결 (선택)
 
-Node.js를 설치한 뒤 `mcp/pixelpair-mcp.mjs`를 사용하는 MCP 클라이언트에 등록합니다.
+**에이전트에게 한 줄로 요청하세요:**
+
+> `https://github.com/ddunddun-labs/PixelPair` 설치하고 MCP 연동해줘
+
+에이전트는 리포의 [`AGENTS.md`](AGENTS.md)를 읽고 아래 설치기를 실행합니다.
+
+```bash
+node scripts/agent-install.mjs --client cursor
+```
+
+`cursor` 대신 `claude` 또는 `codex`를 사용 중이면 에이전트가 해당 클라이언트로 등록합니다. 설치 후 MCP 클라이언트를 **한 번 재시작**하세요.
+
+연결 확인:
+
+```bash
+node scripts/agent-install.mjs --check
+```
+
+수동 설정이 필요하면:
+
+```bash
+node scripts/agent-install.mjs --print --client cursor
+```
+
+<details>
+<summary>수동 MCP 등록 (고급)</summary>
+
+Node.js를 설치한 뒤 `mcp/pixelpair-mcp.mjs`(또는 `~/.pixelpair/mcp/pixelpair-mcp.mjs`)를 MCP 클라이언트에 등록합니다.
 
 Claude Code:
 
@@ -52,7 +79,9 @@ Codex:
 codex mcp add pixelpair -- node /absolute/path/to/mcp/pixelpair-mcp.mjs
 ```
 
-등록 후 클라이언트를 다시 시작합니다. MCP 브리지는 실행 중인 PixelPair를 찾을 수 있고, 배포판 구조에서 사용하면 필요한 경우 같은 플랫폼의 PixelPair 실행 파일을 자동으로 띄울 수 있습니다.
+</details>
+
+MCP 브리지는 실행 중인 PixelPair를 찾을 수 있고, 배포판 구조에서 사용하면 필요한 경우 같은 플랫폼의 PixelPair 실행 파일을 자동으로 띄울 수 있습니다.
 
 > PixelPair와 MCP 프로세스는 같은 OS 환경에서 실행하세요. 예를 들어 Windows PixelPair는 Windows Node/MCP와, WSL PixelPair는 WSL Node/MCP와 함께 사용합니다.
 
@@ -94,7 +123,7 @@ PixelPair는 수천 개 픽셀을 하나씩 보내는 대신 의미 있는 단�
 
 | 구분 | 도구 |
 | --- | --- |
-| 조회 | `get_canvas`, `get_layers` |
+| 조회 | `get_canvas`, `get_status`, `get_layers` |
 | 그리기 | `set_pixels`, `fill_rect`, `clear_rect`, `draw_line`, `draw_circle`, `draw_ellipse`, `draw_polygon`, `round_corners` |
 | 변환 | `flood_erase`, `recolor`, `flip_rect`, `shift_rect`, `rotate_rect`, `center_canvas`, `scale_rect`, `outline_object`, `drop_shadow` |
 | 배치 | `apply_operations` |

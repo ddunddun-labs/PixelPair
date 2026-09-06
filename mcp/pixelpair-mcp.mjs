@@ -3,15 +3,16 @@
  * PixelPair MCP — 로컬 HTTP(기본 http://127.0.0.1:17890)를 감싼다.
  * 서버가 안 떠 있으면 옆 폴더의 플랫폼별 실행 파일을 찾아 자동으로 백그라운드에 띄운다.
  */
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
-import { homedir } from "node:os";
+import { homedir, platform, arch } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const MCP_SCRIPT_PATH = fileURLToPath(import.meta.url);
 const DEFAULT_URL = "http://127.0.0.1:17890";
 
 // dist/mcp/pixelpair-mcp.mjs 옆에 dist/<rid>/PixelPair(.exe) 가 있다고 가정한다 (build-dist.sh 결과물 구조).
@@ -22,6 +23,83 @@ const BINARY_BY_PLATFORM = {
   "darwin-arm64": ["osx-arm64", "PixelPair"],
 };
 
+function isWsl() {
+  if (process.platform !== "linux") return false;
+  try {
+    return /microsoft/i.test(readFileSync("/proc/version", "utf8"));
+  } catch {
+    return false;
+  }
+}
+
+function installerCheckCommand() {
+  const repoRoot = join(__dirname, "..");
+  if (existsSync(join(repoRoot, "PixelPair.csproj"))) {
+    return "node scripts/agent-install.mjs --check";
+  }
+  if (existsSync(join(repoRoot, "agent-install.mjs"))) {
+    return "node agent-install.mjs --check";
+  }
+  return "node scripts/agent-install.mjs --check";
+}
+
+function formatConnectionHelp(err) {
+  const bin = resolveServerBinary();
+  const lines = [
+    `PixelPair 서버에 연결할 수 없고 자동 실행도 실패했다 (${err?.message || err}).`,
+    bin ? `수동 실행: ${bin}` : "설치되지 않았을 수 있다.",
+    "에이전트 설치: node scripts/agent-install.mjs --client cursor",
+    `진단: ${installerCheckCommand()}`,
+  ];
+  if (isWsl()) {
+    lines.push("WSL Node/MCP와 Windows PixelPair를 섞어 쓰지 마세요. 같은 OS 환경에서 실행하세요.");
+  }
+  return lines.join("\n");
+}
+
+async function collectStatus() {
+  const baseUrl = await resolveBaseUrl();
+  let health = null;
+  let serverHealthy = false;
+  try {
+    const res = await fetch(baseUrl + "/health", { signal: AbortSignal.timeout(2000) });
+    serverHealthy = res.ok;
+    if (res.ok) health = await res.json();
+    else health = { status: res.status, statusText: res.statusText };
+  } catch (e) {
+    health = { error: e instanceof Error ? e.message : String(e) };
+  }
+  const bundledBinary = resolveServerBinary();
+  return {
+    ok: serverHealthy,
+    node: process.version,
+    platform: `${platform()}-${arch()}${isWsl() ? " (WSL)" : ""}`,
+    mcpScript: MCP_SCRIPT_PATH,
+    serverUrl: baseUrl,
+    serverHealthy,
+    health,
+    bundledBinary,
+    canAutoLaunch: !!bundledBinary,
+    agentTokenConfigured: !!(await resolveAgentToken()),
+    installCheck: installerCheckCommand(),
+  };
+}
+
+let startupDiagnosticsSent = false;
+
+async function runStartupDiagnostics() {
+  if (startupDiagnosticsSent) return;
+  startupDiagnosticsSent = true;
+  try {
+    const status = await collectStatus();
+    const summary = status.serverHealthy
+      ? `연결 OK (${status.serverUrl}, ${status.platform})`
+      : `서버 미연결 (${status.serverUrl}). ${status.installCheck} 실행 또는 PixelPair를 수동 실행하세요.`;
+    reportStartup(summary);
+  } catch (e) {
+    reportStartup(`시작 진단 실패: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
 function resolveServerBinary() {
   const entry = BINARY_BY_PLATFORM[`${process.platform}-${process.arch}`];
   if (!entry) return null;
@@ -184,10 +262,7 @@ async function api(method, path, body) {
     reportStartup("서버를 시작하는 중...");
     const launched = await ensureServerRunning();
     if (!launched) {
-      throw new Error(
-        `PixelPair 서버에 연결할 수 없고 자동 실행도 실패했다 (${err.message}). ` +
-          `수동으로 서버를 먼저 실행해줘.`
-      );
+      throw new Error(formatConnectionHelp(err));
     }
     reportStartup("서버가 준비됐다.");
     const freshBase = await resolveBaseUrl();
@@ -212,6 +287,11 @@ const TOOLS = [
         scale: { type: "integer", description: "PNG 확대 배율. 기본은 전체 조회 1배, 구역 조회 8배. 최대 16." },
       },
     },
+  },
+  {
+    name: "get_status",
+    description: "PixelPair MCP 브리지와 로컬 HTTP 서버 연결 상태를 진단한다. 설치·연결 문제 해결에 사용한다.",
+    inputSchema: { type: "object", properties: {} },
   },
   {
     name: "import_png",
@@ -668,6 +748,8 @@ const TOOLS = [
 async function callTool(name, args) {
   args = args || {};
   switch (name) {
+    case "get_status":
+      return okText(await collectStatus());
     case "get_canvas": {
       const png = args.include_png !== false;
       const hasRegion = [args.x, args.y, args.w, args.h].every((v) => v !== undefined && v !== null);
@@ -843,6 +925,7 @@ async function onMessage(msg) {
         capabilities: { tools: {} },
       },
     });
+    runStartupDiagnostics().catch(() => {});
     return;
   }
   if (msg.method === "notifications/initialized" || msg.method === "notifications/cancelled") {
@@ -853,6 +936,7 @@ async function onMessage(msg) {
     return;
   }
   if (msg.method === "tools/list") {
+    runStartupDiagnostics().catch(() => {});
     send({ jsonrpc: "2.0", id: msg.id, result: { tools: TOOLS } });
     return;
   }

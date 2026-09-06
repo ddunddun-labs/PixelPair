@@ -38,7 +38,34 @@ PixelPair starts a local server and opens the editor in your default browser. If
 
 ### 2. Pair a coding agent (optional)
 
-Install Node.js, then register `mcp/pixelpair-mcp.mjs` with your MCP client.
+**Ask your agent in one line:**
+
+> Install https://github.com/ddunddun-labs/PixelPair and connect MCP.
+
+The agent reads [`AGENTS.md`](AGENTS.md) and runs:
+
+```bash
+node scripts/agent-install.mjs --client cursor
+```
+
+Use `claude` or `codex` instead of `cursor` when that is your MCP client. **Restart the MCP client once** after install.
+
+Verify:
+
+```bash
+node scripts/agent-install.mjs --check
+```
+
+For manual config only:
+
+```bash
+node scripts/agent-install.mjs --print --client cursor
+```
+
+<details>
+<summary>Manual MCP registration (advanced)</summary>
+
+Install Node.js, then register `mcp/pixelpair-mcp.mjs` (or `~/.pixelpair/mcp/pixelpair-mcp.mjs`) with your MCP client.
 
 Claude Code:
 
@@ -51,6 +78,8 @@ Codex:
 ```bash
 codex mcp add pixelpair -- node /absolute/path/to/mcp/pixelpair-mcp.mjs
 ```
+
+</details>
 
 Restart the client after registration. The MCP bridge can discover a running PixelPair instance and, when used from a packaged distribution, can launch the matching local PixelPair binary when needed.
 
@@ -94,7 +123,7 @@ PixelPair exposes focused tools rather than requiring an agent to send thousands
 
 | Group | Tools |
 | --- | --- |
-| Inspect | `get_canvas`, `get_layers` |
+| Inspect | `get_canvas`, `get_status`, `get_layers` |
 | Draw | `set_pixels`, `fill_rect`, `clear_rect`, `draw_line`, `draw_circle`, `draw_ellipse`, `draw_polygon`, `round_corners` |
 | Transform | `flood_erase`, `recolor`, `flip_rect`, `shift_rect`, `rotate_rect`, `center_canvas`, `scale_rect`, `outline_object`, `drop_shadow` |
 | Batch | `apply_operations` |
