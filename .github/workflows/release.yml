@@ -24,7 +24,7 @@ jobs:
       - name: Package platform zips
         run: |
           cd publish/dist
-          COMMON="mcp LICENSE THIRD_PARTY_NOTICES.md THIRD_PARTY_LICENSES"
+          COMMON="mcp agent-install.mjs AGENTS.md QUICKSTART.txt docs LICENSE THIRD_PARTY_NOTICES.md THIRD_PARTY_LICENSES"
           zip -r ../../PixelPair-win-x64.zip win-x64 $COMMON
           zip -r ../../PixelPair-linux-x64.zip linux-x64 $COMMON
           zip -r ../../PixelPair-osx-x64.zip osx-x64 $COMMON UNVERIFIED.txt
