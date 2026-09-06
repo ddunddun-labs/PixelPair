@@ -2,6 +2,18 @@
 
 All notable user-facing changes to PixelPair will be documented here.
 
+## [0.1.3] - 2026-09-06
+
+### Added
+
+- Added agent-driven install flow via [`AGENTS.md`](AGENTS.md) and `scripts/agent-install.mjs` for Cursor, Claude Code, and Codex.
+- Added MCP `get_status` tool and startup connection diagnostics in `pixelpair-mcp.mjs`.
+- Added MCP setup docs (`docs/MCP_SETUP.md`, `docs/MCP_SETUP.ko.md`) and `QUICKSTART.txt` to release packages.
+
+### Changed
+
+- Release zips now bundle onboarding files (`agent-install.mjs`, `AGENTS.md`, `docs/`, `QUICKSTART.txt`) alongside platform binaries and the MCP bridge.
+
 ## [0.1.2] - 2026-08-24
 
 ### Added
@@ -49,6 +61,7 @@ All notable user-facing changes to PixelPair will be documented here.
 - Windows portability of the smoke-test MCP subprocess handling.
 - `draw_polygon` now honors `stroke_width`, with regression coverage for thick outlines.
 
+[0.1.3]: https://github.com/ddunddun-labs/PixelPair/releases/tag/v0.1.3
 [0.1.2]: https://github.com/ddunddun-labs/PixelPair/releases/tag/v0.1.2
 [0.1.1]: https://github.com/ddunddun-labs/PixelPair/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ddunddun-labs/PixelPair/releases/tag/v0.1.0
