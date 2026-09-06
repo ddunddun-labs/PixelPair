@@ -23,6 +23,31 @@ done
 cp -r mcp "$DIST/mcp"
 rm -rf "$DIST/mcp/node_modules"
 
+cp scripts/agent-install.mjs "$DIST/agent-install.mjs"
+cp AGENTS.md "$DIST/AGENTS.md"
+mkdir -p "$DIST/docs"
+cp docs/MCP_SETUP.ko.md docs/MCP_SETUP.md "$DIST/docs/"
+
+cat > "$DIST/QUICKSTART.txt" <<'EOF'
+PixelPair quick start
+=====================
+
+1) Run the editor for your platform:
+   Windows       win-x64/PixelPair.exe
+   Linux / WSL   ./linux-x64/PixelPair
+   macOS x64     ./osx-x64/PixelPair
+   macOS arm64   ./osx-arm64/PixelPair
+
+2) Connect a coding agent (Node.js 18+ required):
+   node agent-install.mjs --client cursor
+
+3) Restart your MCP client once, then ask the agent:
+   "Show PixelPair canvas status" (get_status / get_canvas)
+
+Docs: AGENTS.md, docs/MCP_SETUP.md
+Official repo: https://github.com/ddunddun-labs/PixelPair
+EOF
+
 # Keep PixelPair's license and runtime third-party notices alongside every release archive.
 cp LICENSE THIRD_PARTY_NOTICES.md "$DIST/"
 cp -r THIRD_PARTY_LICENSES "$DIST/THIRD_PARTY_LICENSES"
