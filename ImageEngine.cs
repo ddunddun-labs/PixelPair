@@ -146,9 +146,9 @@ namespace PixelPair
 
         public static byte[] RenderPng(Rgba32?[,] pixels, int gridSize, int outputSize)
         {
-            using var image = new Image<Rgba32>(outputSize, outputSize);
             if (outputSize >= gridSize)
             {
+                using var image = new Image<Rgba32>(outputSize, outputSize);
                 int sc = Math.Max(1, outputSize / gridSize);
                 for (int y = 0; y < gridSize; y++)
                 {
@@ -158,26 +158,39 @@ namespace PixelPair
                         FillBlock(image, x * sc, y * sc, sc, sc, c);
                     }
                 }
+                using var ms = new MemoryStream();
+                image.SaveAsPng(ms);
+                return ms.ToArray();
             }
             else
             {
-                // outputSize < gridSize: Nearest-Neighbor 다운샘플링
-                for (int y = 0; y < outputSize; y++)
+                // outputSize < gridSize: 다운샘플링
+                // 원본 그리드 이미지를 생성한 후, 소형 해상도(16, 24, 32, 48 등)로 축소할 때
+                // 단순 점 스킵(Nearest-Neighbor)으로 선/디테일이 날아가지 않도록
+                // 영역 평균(Box 리샘플러)으로 부드럽고 또렷하게 안티에일리어싱 다운스케일링 수행
+                using var fullImg = new Image<Rgba32>(gridSize, gridSize);
+                for (int y = 0; y < gridSize; y++)
                 {
-                    int gy = Math.Clamp(y * gridSize / outputSize, 0, gridSize - 1);
-                    for (int x = 0; x < outputSize; x++)
+                    for (int x = 0; x < gridSize; x++)
                     {
-                        int gx = Math.Clamp(x * gridSize / outputSize, 0, gridSize - 1);
-                        if (pixels[gx, gy] is Rgba32 c)
+                        if (pixels[x, y] is Rgba32 c)
                         {
-                            image[x, y] = c;
+                            fullImg[x, y] = c;
                         }
                     }
                 }
+
+                fullImg.Mutate(ctx => ctx.Resize(new ResizeOptions
+                {
+                    Size = new Size(outputSize, outputSize),
+                    Sampler = KnownResamplers.Box,
+                    Mode = ResizeMode.Stretch
+                }));
+
+                using var ms = new MemoryStream();
+                fullImg.SaveAsPng(ms);
+                return ms.ToArray();
             }
-            using var ms = new MemoryStream();
-            image.SaveAsPng(ms);
-            return ms.ToArray();
         }
 
         public static byte[] RenderRegionPng(Rgba32?[,] pixels, int gridSize, int x0, int y0, int w, int h, int scale)
