@@ -2,6 +2,12 @@
 
 All notable user-facing changes to PixelPair will be documented here.
 
+## [0.1.5] - 2026-10-23
+
+### Fixed
+
+- Fixed multi-resolution ICO entry ordering to descending order (`256, 128, 64, 48, 32, 24, 16`) so standard Windows photo viewers and image viewers open the highest-resolution 256px frame by default instead of 16px.
+
 ## [0.1.4] - 2026-10-23
 
 ### Added

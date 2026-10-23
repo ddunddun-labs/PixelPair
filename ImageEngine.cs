@@ -217,10 +217,10 @@ namespace PixelPair
             File.WriteAllBytes(path, RenderPng(pixels, gridSize, outputSize));
         }
 
-        // PNG 기반 다중 해상도 ICO 바이트 생성 (16, 24, 32, 48, 64, 128, 256)
+        // PNG 기반 다중 해상도 ICO 바이트 생성 (뷰어 기본 표시 및 표준 규격에 맞춘 256~16 내림차순 정렬)
         public static byte[] RenderIco(Rgba32?[,] pixels, int gridSize, int[]? customSizes = null)
         {
-            int[] sizes = customSizes is { Length: > 0 } ? customSizes : [16, 24, 32, 48, 64, 128, 256];
+            int[] sizes = customSizes is { Length: > 0 } ? customSizes : [256, 128, 64, 48, 32, 24, 16];
             var pngEntries = new List<(int size, byte[] pngBytes)>();
             foreach (int sz in sizes)
             {
