@@ -250,7 +250,7 @@ def main() -> None:
         )
         assert exported["ok"] is True and export_path.exists()
 
-        # Multi-resolution ICO export test (16, 24, 32, 48, 64, 128, 256)
+        # Multi-resolution ICO export test (256, 128, 64, 48, 32, 24, 16 descending order)
         ico_export_path = Path(tempfile.gettempdir()) / f"pixelpair-smoke-{os.getpid()}.ico"
         ico_exported, _ = json_request(
             "POST",
@@ -263,7 +263,7 @@ def main() -> None:
         assert len(ico_data) > 6 + 7 * 16
         ico_count = int.from_bytes(ico_data[4:6], "little")
         assert ico_count == 7, f"Expected 7 ICO images, got {ico_count}"
-        expected_dims = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (0, 0)]
+        expected_dims = [(0, 0), (128, 128), (64, 64), (48, 48), (32, 32), (24, 24), (16, 16)]
         for i, (exp_w, exp_h) in enumerate(expected_dims):
             entry_off = 6 + i * 16
             w = ico_data[entry_off]
