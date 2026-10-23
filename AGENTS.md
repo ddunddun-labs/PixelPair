@@ -58,6 +58,22 @@ MCP bridge path after install: `{install-root}/mcp/pixelpair-mcp.mjs`
 - Install from unofficial forks unless the user explicitly requests it.
 - Run Windows PixelPair with WSL Node/MCP (or the reverse).
 
+## Pixel art & icon design guidelines (for agents)
+
+When creating or modifying icons and sprites for users:
+
+1. **Prioritize small-scale readability**:
+   - Windows taskbars (24×24), favicons (16×16), and desktop icon views (32×32) require bold, recognizable silhouettes.
+   - Avoid intricate 1px noise (dense text lines, micro grids) that blur or break when scaled down.
+2. **High-contrast focal points**:
+   - Use high-contrast pixels (e.g. clean white/dark eyes, vibrant badges) so key features pop at 16–32px.
+3. **Solid outlines**:
+   - Apply a crisp 1px dark border (`outline_object` or manual outline) so icons stand out against both dark and light OS backgrounds.
+4. **Stable ground / depth**:
+   - Ground the icon with a subtle base shadow (`drop_shadow`) to give it an intentional app badge look.
+5. **Batch operations**:
+   - Group drawing and transformation steps into a single `apply_operations` call for single-step undo and efficient history.
+
 ## Develop / verify (maintainers)
 
 ```bash

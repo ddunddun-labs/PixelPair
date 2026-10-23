@@ -2,6 +2,16 @@
 
 All notable user-facing changes to PixelPair will be documented here.
 
+## [0.1.4] - 2026-10-23
+
+### Added
+
+- Added pixel art & icon design guidelines to [`AGENTS.md`](AGENTS.md) prioritizing small-scale readability (16px, 24px, 32px), high-contrast focal points, and solid outlines.
+
+### Changed
+
+- Improved icon downscaling in `ImageEngine.cs` using area-averaging (Box resampler) to prevent 1px line dropout and preserve recognizable silhouettes on Windows taskbar and favicon sizes.
+
 ## [0.1.3] - 2026-09-06
 
 ### Added
